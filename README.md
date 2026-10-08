@@ -5,6 +5,8 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+![Sam's Virtual Office 3D Preview](./assets/preview.png)
+
 **Sam's Virtual Office** adalah aplikasi virtual office 3D interaktif real-time berbasis WebGL (Three.js) yang memvisualisasikan aktivitas dan alur kerja agen AI otonom (*Digital Twin* untuk AI Coding Agents).
 
 Aplikasi ini dapat dikontrol secara langsung oleh berbagai coding agent (seperti **Antigravity**, **Claude Code**, **Cursor**, **Windsurf**, dan skrip mandiri) baik melalui **Model Context Protocol (MCP)**, **CLI Helper**, maupun **WebSocket Bridge**.
