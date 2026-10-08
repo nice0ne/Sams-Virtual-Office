@@ -1,0 +1,25 @@
+{
+  "name": "sams-virtual-office",
+  "version": "1.0.0",
+  "description": "Sam's Virtual Office — Real-time 3D AI Agent Virtual Office",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "simulate": "node simulate-work.js",
+    "notify": "node notify.js"
+  },
+  "keywords": [
+    "virtual-office",
+    "threejs",
+    "ai-agents",
+    "superpowers",
+    "mcp",
+    "websocket"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}

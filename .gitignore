@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+
+# Runtime & State Files
+state.json
+*.log
+npm-debug.log*
+
+# Superpowers temporary cache
+.superpowers/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS & Editor generated files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
