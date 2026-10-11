@@ -4,11 +4,12 @@
  * Menerima event instan (<10ms) dari server.js / agy!
  */
 export class LiveStateListener {
-  constructor({ engine, whiteboard, spawner, bots, pollInterval = 1000 }) {
+  constructor({ engine, whiteboard, spawner, bots, idleWanderController = null, pollInterval = 1000 }) {
     this.engine = engine;
     this.whiteboard = whiteboard;
     this.spawner = spawner;
     this.bots = bots;
+    this.idleWanderController = idleWanderController;
     this.pollInterval = pollInterval;
 
     this.currentSessionId = null;
@@ -155,6 +156,10 @@ export class LiveStateListener {
       });
     }
 
+    if (this.idleWanderController && typeof this.idleWanderController.resumeAll === 'function') {
+      this.idleWanderController.resumeAll();
+    }
+
     this.showNewSessionNotice(data.topic || 'Sesi Baru');
 
     if (this.engine && typeof this.engine.resetWorkflow === 'function') {
@@ -216,6 +221,9 @@ export class LiveStateListener {
 
     // 2. Gerakkan Karakter Speaker & Munculkan Balon Dialog
     if (data.speaker && this.bots) {
+      if (this.idleWanderController && typeof this.idleWanderController.interruptBot === 'function') {
+        this.idleWanderController.interruptBot(data.speaker);
+      }
       const bot = this.bots.get(data.speaker);
       if (bot) {
         if (data.speakerMessage && typeof bot.say === 'function') {
@@ -310,6 +318,9 @@ export class LiveStateListener {
           b.setState('idle', relaxQuotes[b.id] || b.defaultSpeech || '☕ Santai di lobby');
         }
       });
+      if (this.idleWanderController && typeof this.idleWanderController.resumeAll === 'function') {
+        this.idleWanderController.resumeAll();
+      }
     }
 
     // 3. Update Status FSM Engine & Badge UI

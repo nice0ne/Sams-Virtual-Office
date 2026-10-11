@@ -534,6 +534,7 @@ dialog::backdrop {
   <div class="box tabs" id="tabs"></div>
   <div class="box tools">
     <button class="btn" id="btnToggleLabels" aria-pressed="true" title="Tampilkan / sembunyikan badge nama karakter di atas kepala (Shortcut: N atau H)">🏷️ Label: On</button>
+    <button class="btn" id="btnToggleWander" aria-pressed="true" title="Aktifkan / nonaktifkan pergerakan santai otomatis agen saat standby">🚶 Roaming: On</button>
     <button class="btn" id="btnSuperpowers" aria-pressed="true" title="Buka/Tutup Superpowers HUD Panel">⚡ Superpowers</button>
     <button class="btn" id="walls" aria-pressed="false" title="Dinding depan & kanan: kaca transparan / tembok penuh">🧱 Tembok</button>
     <button class="btn" id="demo" aria-pressed="false" title="Percepat simulasi task & aktivitas">🎬 Demo</button>
@@ -573,6 +574,7 @@ import { SubagentSpawner } from "./js/subagent-spawner.js";
 import { SuperpowersWorkflowEngine } from "./js/superpowers-engine.js";
 import { initSuperpowersUI } from "./js/superpowers-ui.js";
 import { LiveStateListener } from "./js/live-state-listener.js";
+import { IdleWanderController } from "./js/idle-wander-controller.js";
 
 // ==========================================
 // 1. TEXTURES & SCREENS ENGINE
@@ -4684,6 +4686,15 @@ class Agent {
     if (speech !== null) {
       this.say(speech);
     }
+
+    // Synchronize autonomous roaming behavior
+    if (typeof window !== 'undefined' && window.idleWanderController) {
+      if (newState !== 'idle') {
+        window.idleWanderController.interruptBot(this.id);
+      } else {
+        window.idleWanderController.scheduleWander(this.id);
+      }
+    }
   }
 
   /**
@@ -6131,15 +6142,46 @@ eventBus.on('SUPERPOWER_STAGE_CHANGE', (evt) => {
   }
 });
 
+// Standby Idle Roaming Controller (Berkeliling kantor secara organik saat standby)
+const idleWanderController = new IdleWanderController({
+  bots,
+  office,
+  eventBus,
+  minInterval: 16000,
+  maxInterval: 34000
+});
+if (typeof window !== 'undefined') {
+  window.idleWanderController = idleWanderController;
+}
+idleWanderController.start();
+
 // Live State Listener (Sinkronisasi otomatis dengan sesi agy)
 const liveStateListener = new LiveStateListener({
   engine: superpowersEngine,
   whiteboard,
   spawner,
   bots,
+  idleWanderController,
   pollInterval: 1000
 });
 liveStateListener.start();
+
+// Top bar Roaming button toggle
+const btnToggleWander = document.getElementById('btnToggleWander');
+if (btnToggleWander) {
+  btnToggleWander.onclick = () => {
+    idleWanderController.enabled = !idleWanderController.enabled;
+    if (idleWanderController.enabled) {
+      idleWanderController.start();
+      btnToggleWander.textContent = '🚶 Roaming: On';
+      btnToggleWander.setAttribute('aria-pressed', 'true');
+    } else {
+      idleWanderController.stop();
+      btnToggleWander.textContent = '🚶 Roaming: Off';
+      btnToggleWander.setAttribute('aria-pressed', 'false');
+    }
+  };
+}
 
 // Top bar Superpowers button toggle
 const btnSuperpowers = document.getElementById('btnSuperpowers');
@@ -6165,6 +6207,7 @@ if (typeof window !== 'undefined') {
   window.superpowersSpawner = spawner;
   window.whiteboardDisplay = whiteboard;
   window.superpowersUI = superpowersUI;
+  window.idleWanderController = idleWanderController;
 }
 
 // Animation Tickers
