@@ -208,6 +208,19 @@ export class LiveStateListener {
   applyState(data) {
     console.log('[LiveStateListener] Update event:', data.stage || data.status, '| Speaker:', data.speaker);
 
+    // 0. Remote Roaming Toggle Event
+    if (typeof data.roaming === 'boolean' && this.idleWanderController && typeof this.idleWanderController.toggle === 'function') {
+      this.idleWanderController.toggle(data.roaming);
+      if (typeof document !== 'undefined') {
+        const btn = document.getElementById('btnToggleWander');
+        if (btn) {
+          btn.textContent = data.roaming ? '🚶 Roaming: On' : '🚶 Roaming: Off';
+          btn.setAttribute('aria-pressed', data.roaming ? 'true' : 'false');
+          btn.classList.toggle('active', data.roaming);
+        }
+      }
+    }
+
     // 1. Update Whiteboard 3D
     if (data.whiteboard && this.whiteboard) {
       this.whiteboard.updateContent({

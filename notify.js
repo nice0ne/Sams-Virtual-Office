@@ -122,6 +122,7 @@ if (isDirectExecution && process.argv.length > 2) {
   const role = getArg('--role') || 'Subagent Worker';
   const task = getArg('--task') || 'Menjalankan tugas subagent...';
   const color = getArg('--color') || '#38bdf8';
+  const roamingArg = getArg('--roaming');
 
   const payload = {};
   if (session) payload.sessionId = session;
@@ -129,6 +130,17 @@ if (isDirectExecution && process.argv.length > 2) {
   if (stage) payload.stage = stage;
   if (speaker) payload.speaker = speaker;
   if (msg) payload.speakerMessage = msg;
+
+  if (roamingArg !== null) {
+    const isRoaming = roamingArg.toLowerCase() === 'on' || roamingArg.toLowerCase() === 'true' || roamingArg === '1';
+    payload.roaming = isRoaming;
+    if (!payload.speaker) payload.speaker = 'kamala';
+    if (!payload.speakerMessage) {
+      payload.speakerMessage = isRoaming 
+        ? '🚶 Roaming standby diaktifkan: Agen dipersilakan berkeliling santai.' 
+        : '🛑 Roaming standby dinonaktifkan: Semua agen kembali ke lobby.';
+    }
+  }
 
   if (spawn) {
     payload.stage = 'EXECUTING_SUBAGENTS';

@@ -173,7 +173,17 @@ export class IdleWanderController {
     this.minInterval = minInterval;
     this.maxInterval = maxInterval;
     this.spots = Array.isArray(spots) ? [...spots] : [...DEFAULT_ROAMING_SPOTS];
-    this.enabled = enabled;
+    // Check localStorage preference if available
+    let initialEnabled = enabled;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('sams_office_roaming');
+        if (saved !== null) {
+          initialEnabled = saved === 'true';
+        }
+      } catch (e) {}
+    }
+    this.enabled = initialEnabled;
 
     // Track active timers per botId
     this.botTimers = new Map();
@@ -197,6 +207,15 @@ export class IdleWanderController {
           this.pauseAll();
         }
       });
+
+      // Remote or UI toggle event
+      this.eventBus.on('ROAMING_TOGGLE', (evt) => {
+        if (evt && typeof evt.enabled === 'boolean') {
+          this.toggle(evt.enabled);
+        } else {
+          this.toggle();
+        }
+      });
     }
   }
 
@@ -206,6 +225,9 @@ export class IdleWanderController {
    */
   start() {
     this.enabled = true;
+    if (typeof localStorage !== 'undefined') {
+      try { localStorage.setItem('sams_office_roaming', 'true'); } catch (e) {}
+    }
     const botList = this._getBotsList();
 
     botList.forEach((bot, index) => {
@@ -217,14 +239,59 @@ export class IdleWanderController {
   }
 
   /**
-   * Stop/Pause all roaming timers and clear spot assignments.
+   * Return all currently idle bots to their designated lobby spots.
    */
-  stop() {
+  returnAllToLobby() {
+    const botList = this._getBotsList();
+    botList.forEach((bot) => {
+      if (!bot || bot.state !== 'idle') return;
+      if (bot.lobbySpot && typeof bot.walkTo === 'function') {
+        const currentSpotKey = this.botCurrentSpot.get(bot.id);
+        if (currentSpotKey) {
+          this.occupiedSpots.delete(currentSpotKey);
+          this.botCurrentSpot.delete(bot.id);
+        }
+        bot.walkTo(bot.lobbySpot, () => {
+          if (typeof bot.say === 'function') {
+            bot.say(bot.defaultSpeech || '☕ Santai di lobby', 3500);
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Stop/Pause all roaming timers and clear spot assignments.
+   * @param {object} [options]
+   * @param {boolean} [options.returnToLobby=true] If true, sends all idle agents back to lobby
+   */
+  stop({ returnToLobby = true } = {}) {
     this.enabled = false;
     this.botTimers.forEach((timerId) => clearTimeout(timerId));
     this.botTimers.clear();
     this.occupiedSpots.clear();
     this.botCurrentSpot.clear();
+    if (typeof localStorage !== 'undefined') {
+      try { localStorage.setItem('sams_office_roaming', 'false'); } catch (e) {}
+    }
+    if (returnToLobby) {
+      this.returnAllToLobby();
+    }
+  }
+
+  /**
+   * Toggle roaming state on or off.
+   * @param {boolean} [forceVal]
+   * @returns {boolean} New enabled state
+   */
+  toggle(forceVal = null) {
+    const nextState = typeof forceVal === 'boolean' ? forceVal : !this.enabled;
+    if (nextState) {
+      this.start();
+    } else {
+      this.stop({ returnToLobby: true });
+    }
+    return this.enabled;
   }
 
   pauseAll() {

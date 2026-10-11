@@ -113,5 +113,26 @@ assert(controller.botTimers.size > 0, 'Timers scheduled when returning to FINISH
 controller.stop();
 assert(controller.botTimers.size === 0, 'All timers stopped after controller.stop()');
 
+// Test 8: Toggle method
+assert(controller.enabled === false, 'Controller is currently disabled');
+controller.toggle();
+assert(controller.enabled === true, 'Toggle() flips enabled to true');
+controller.toggle();
+assert(controller.enabled === false, 'Toggle() flips enabled to false');
+
+// Test 9: Return to lobby
+devin.lobbySpot = { x: 5.2, z: 5.2, yaw: 0 };
+audit.lobbySpot = { x: 13.8, z: 4.0, yaw: -Math.PI / 2 };
+controller.returnAllToLobby();
+assert(devin.walkTarget !== null && devin.walkTarget.x === 5.2, 'Devin walks back to lobby spot');
+assert(audit.walkTarget !== null && audit.walkTarget.x === 13.8, 'Audit walks back to lobby spot');
+
+// Test 10: EventBus ROAMING_TOGGLE event
+mockEventBus.emit('ROAMING_TOGGLE', { enabled: true });
+assert(controller.enabled === true, 'ROAMING_TOGGLE event sets enabled to true');
+
+mockEventBus.emit('ROAMING_TOGGLE', { enabled: false });
+assert(controller.enabled === false, 'ROAMING_TOGGLE event sets enabled to false');
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

@@ -4480,6 +4480,7 @@ class Agent {
     this.speed = 2.6; // units / sec
     this.walkCycle = Math.random() * 10;
     this.typingCycle = Math.random() * 10;
+    this.idleCycle = Math.random() * 50;
     this.baseY = 0;
     this.speechTimeout = null;
 
@@ -4503,6 +4504,7 @@ class Agent {
       this.rightArm = { rotation: { x: 0, y: 0, z: 0 } };
       this.leftLeg = { rotation: { x: 0, y: 0, z: 0 } };
       this.rightLeg = { rotation: { x: 0, y: 0, z: 0 } };
+      this.headMesh = { rotation: { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; } } };
       return;
     }
 
@@ -4896,6 +4898,18 @@ class Agent {
         this.mesh.position.z += (dz / dist) * step;
       }
 
+      // Reset head and lateral tilts while walking
+      if (this.headMesh && this.headMesh.rotation) {
+        this.headMesh.rotation.set(0, 0, 0);
+      }
+      if (this.mesh && this.mesh.rotation) {
+        this.mesh.rotation.z = 0;
+      }
+      if (this.leftArm) this.leftArm.rotation.z = 0;
+      if (this.rightArm) this.rightArm.rotation.z = 0;
+      if (this.leftLeg) this.leftLeg.rotation.z = 0;
+      if (this.rightLeg) this.rightLeg.rotation.z = 0;
+
       // Walking leg/arm swing cycle (negative rotation.x swings forward towards +Z)
       this.walkCycle += dt * 9;
       const legSwing = Math.sin(this.walkCycle) * 0.55;
@@ -4918,10 +4932,28 @@ class Agent {
       const typeLeft = -(0.7 + Math.sin(this.typingCycle) * 0.15);
       const typeRight = -(0.7 + Math.cos(this.typingCycle) * 0.15);
 
-      if (this.leftArm) this.leftArm.rotation.x = typeLeft;
-      if (this.rightArm) this.rightArm.rotation.x = typeRight;
-      if (this.leftLeg) this.leftLeg.rotation.x = -Math.PI / 2.2;
-      if (this.rightLeg) this.rightLeg.rotation.x = -Math.PI / 2.2;
+      if (this.headMesh && this.headMesh.rotation) {
+        this.headMesh.rotation.set(0, 0, 0);
+      }
+      if (this.mesh && this.mesh.rotation) {
+        this.mesh.rotation.z = 0;
+      }
+      if (this.leftArm) {
+        this.leftArm.rotation.x = typeLeft;
+        this.leftArm.rotation.z = 0;
+      }
+      if (this.rightArm) {
+        this.rightArm.rotation.x = typeRight;
+        this.rightArm.rotation.z = 0;
+      }
+      if (this.leftLeg) {
+        this.leftLeg.rotation.x = -Math.PI / 2.2;
+        this.leftLeg.rotation.z = 0;
+      }
+      if (this.rightLeg) {
+        this.rightLeg.rotation.x = -Math.PI / 2.2;
+        this.rightLeg.rotation.z = 0;
+      }
       this.mesh.position.y = this.baseY + 0.25;
 
       // Ensure orientation faces desk when working and not walking
@@ -4930,6 +4962,9 @@ class Agent {
       }
     } else if (this.state === 'offline') {
       // Resting on bed
+      if (this.headMesh && this.headMesh.rotation) {
+        this.headMesh.rotation.set(0, 0, 0);
+      }
       if (this.leftArm) this.leftArm.rotation.x = 0;
       if (this.rightArm) this.rightArm.rotation.x = 0;
       if (this.leftLeg) this.leftLeg.rotation.x = 0;
@@ -4937,17 +4972,47 @@ class Agent {
       this.mesh.rotation.x = -Math.PI / 2;
       this.mesh.position.y = 0.25;
     } else {
-      // Standing / Idle / Recent / Blocked
-      this.typingCycle += dt * 2.5;
-      const breathe = Math.sin(this.typingCycle) * 0.05;
+      // Standing / Idle / Recent / Blocked - Lifelike Procedural Idle Animation
+      this.idleCycle = (this.idleCycle || 0) + dt * 1.8;
 
-      if (this.leftLeg) this.leftLeg.rotation.x = 0;
-      if (this.rightLeg) this.rightLeg.rotation.x = 0;
-      if (this.leftArm) this.leftArm.rotation.x = breathe;
-      if (this.rightArm) this.rightArm.rotation.x = -breathe;
+      // 1. Kaki: Menggeser tumpuan berat badan (subtle weight shift & natural knee flex)
+      const legShift = Math.sin(this.idleCycle * 0.7) * 0.08;
+      if (this.leftLeg) {
+        this.leftLeg.rotation.x = Math.max(0, legShift);
+        this.leftLeg.rotation.z = Math.sin(this.idleCycle * 0.7) * 0.03;
+      }
+      if (this.rightLeg) {
+        this.rightLeg.rotation.x = Math.max(0, -legShift);
+        this.rightLeg.rotation.z = -Math.sin(this.idleCycle * 0.7) * 0.03;
+      }
 
-      this.mesh.rotation.x = 0;
-      this.mesh.position.y = this.baseY;
+      // 2. Lengan: Ayunan rileks di samping pinggang (natural rest pose, sedikit merenggang dari baju)
+      const armSway = Math.sin(this.idleCycle * 1.1) * 0.14;
+      if (this.leftArm) {
+        this.leftArm.rotation.x = 0.08 + armSway;
+        this.leftArm.rotation.z = -0.12 - Math.cos(this.idleCycle * 0.55) * 0.03;
+      }
+      if (this.rightArm) {
+        this.rightArm.rotation.x = 0.08 - armSway * 0.85;
+        this.rightArm.rotation.z = 0.12 + Math.cos(this.idleCycle * 0.55) * 0.03;
+      }
+
+      // 3. Badan: Subtle vertical breathing bob & lateral weight sway
+      const breatheBob = Math.sin(this.idleCycle * 1.4) * 0.02;
+      this.mesh.position.y = this.baseY + breatheBob;
+      if (this.mesh.rotation) {
+        this.mesh.rotation.x = 0;
+        this.mesh.rotation.z = Math.sin(this.idleCycle * 0.7) * 0.018;
+      }
+
+      // 4. Kepala: Menoleh perlahan mengamati suasana kantor
+      if (this.headMesh && this.headMesh.rotation) {
+        const lookYaw = Math.sin(this.idleCycle * 0.35) * 0.22;
+        const lookPitch = Math.cos(this.idleCycle * 0.7) * 0.05;
+        this.headMesh.rotation.y = lookYaw;
+        this.headMesh.rotation.x = lookPitch;
+        this.headMesh.rotation.z = -Math.sin(this.idleCycle * 0.7) * 0.02;
+      }
     }
   }
 }
@@ -6107,7 +6172,70 @@ const idleWanderController = new IdleWanderController({
 if (typeof window !== 'undefined') {
   window.idleWanderController = idleWanderController;
 }
-idleWanderController.start();
+
+// UI helper to update button appearance
+function updateWanderButton(enabled) {
+  const btn = document.getElementById('btnToggleWander');
+  if (!btn) return;
+  btn.textContent = enabled ? '🚶 Roaming: On' : '🚶 Roaming: Off';
+  btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+  if (enabled) {
+    btn.style.color = '#4ade80';
+    btn.style.borderColor = 'rgba(74, 222, 128, 0.4)';
+    btn.style.background = 'rgba(74, 222, 128, 0.12)';
+  } else {
+    btn.style.color = '#94a3b8';
+    btn.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+    btn.style.background = 'rgba(255, 255, 255, 0.04)';
+  }
+}
+
+// Toast notification for Roaming toggle
+function showRoamingToast(enabled) {
+  if (typeof document === 'undefined') return;
+  let toast = document.getElementById('roaming-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'roaming-toast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 16px;
+      border-radius: 20px;
+      font: 700 12.5px 'Nunito', sans-serif;
+      z-index: 9999;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+  }
+  if (enabled) {
+    toast.style.background = 'rgba(22, 163, 74, 0.95)';
+    toast.style.color = '#ffffff';
+    toast.innerHTML = '🚶 <b>Roaming Standby: Aktif</b> (Agen berkeliling santai)';
+  } else {
+    toast.style.background = 'rgba(220, 38, 38, 0.95)';
+    toast.style.color = '#ffffff';
+    toast.innerHTML = '🛑 <b>Roaming Standby: Nonaktif</b> (Agen kembali ke lobby)';
+  }
+  toast.style.opacity = '1';
+  toast.style.display = 'block';
+  setTimeout(() => {
+    if (toast) {
+      toast.style.opacity = '0';
+      setTimeout(() => { if (toast) toast.style.display = 'none'; }, 300);
+    }
+  }, 2500);
+}
+
+// Initial start if enabled
+if (idleWanderController.enabled) {
+  idleWanderController.start();
+}
+updateWanderButton(idleWanderController.enabled);
 
 // Live State Listener (Menghubungkan event nyata dari agy via WebSocket)
 const liveStateListener = new LiveStateListener({
@@ -6124,17 +6252,22 @@ liveStateListener.start();
 const btnToggleWander = document.getElementById('btnToggleWander');
 if (btnToggleWander) {
   btnToggleWander.onclick = () => {
-    idleWanderController.enabled = !idleWanderController.enabled;
-    if (idleWanderController.enabled) {
-      idleWanderController.start();
-      btnToggleWander.textContent = '🚶 Roaming: On';
-      btnToggleWander.setAttribute('aria-pressed', 'true');
-    } else {
-      idleWanderController.stop();
-      btnToggleWander.textContent = '🚶 Roaming: Off';
-      btnToggleWander.setAttribute('aria-pressed', 'false');
-    }
+    const newState = idleWanderController.toggle();
+    updateWanderButton(newState);
+    showRoamingToast(newState);
   };
+}
+
+// Keyboard shortcut: Press 'R' to toggle roaming
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', (e) => {
+    if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    if (e.key === 'r' || e.key === 'R') {
+      const newState = idleWanderController.toggle();
+      updateWanderButton(newState);
+      showRoamingToast(newState);
+    }
+  });
 }
 
 // Global window exposure for automation and external listeners
